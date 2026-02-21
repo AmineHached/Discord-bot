@@ -1,0 +1,99 @@
+import os
+import discord
+from discord.ext import commands
+
+TOKEN = 'TOKEN'
+GUILD_NAME = "Kaikei"
+
+
+# Names of roles (must match exactly)
+RECRUIT_ROLE_NAME = "🌱 Recruit"
+MEMBER_ROLE_NAME = "🎮 Member"
+
+# Name of the channel where approvals work
+APPROVAL_CHANNEL_NAME = "apply-here"
+
+# =====================
+# Bot Setup
+# =====================
+
+intents = discord.Intents.default()
+intents.message_content = True
+intents.reactions = True
+intents.members = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+# =====================
+# Event: Bot Ready
+# =====================
+
+@bot.event
+async def on_ready():
+    print(f"Bot is online as {bot.user}")
+
+# =====================
+# Handle Approval Reactions
+# =====================
+
+@bot.event
+async def on_raw_reaction_add(payload):
+    # Only handle checkmark reactions
+    if payload.emoji.name != "✅":
+        return
+
+    guild = bot.get_guild(payload.guild_id)
+    if guild is None:
+        return
+
+    # Make sure this is the correct channel
+    channel = guild.get_channel(payload.channel_id)
+    if channel.name != APPROVAL_CHANNEL_NAME:
+        return
+
+    # Get the message that was reacted to
+    try:
+        message = await channel.fetch_message(payload.message_id)
+    except:
+        return
+
+    # Make sure this is not a bot or system message
+    if message.author.bot:
+        return
+
+    # Get the author (applicant)
+    applicant = message.author
+
+    # Get the roles by name
+    member_role = discord.utils.get(guild.roles, name=MEMBER_ROLE_NAME)
+    recruit_role = discord.utils.get(guild.roles, name=RECRUIT_ROLE_NAME)
+
+    # If roles don’t exist, do nothing
+    if member_role is None or recruit_role is None:
+        return
+
+    # Add Member role
+    try:
+        await applicant.add_roles(member_role)
+    except Exception as e:
+        print("Failed to add role:", e)
+
+    # Remove Recruit role
+    try:
+        await applicant.remove_roles(recruit_role)
+    except Exception as e:
+        print("Failed to remove role:", e)
+
+    # Approve message
+    await channel.send(
+        f"🌿 Welcome to Kaikei, {applicant.mention}! Your application has been approved."
+    )
+
+# =====================
+# Run Bot
+# =====================
+
+if __name__ == "__main__":
+    if not TOKEN:
+        raise RuntimeError("Set your DISCORD_TOKEN in the code.")
+    bot.run(TOKEN)
