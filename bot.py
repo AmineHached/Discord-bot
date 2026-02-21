@@ -119,7 +119,7 @@ async def on_raw_reaction_add(payload):
     Your application has been **approved** ✅  
     You are now officially a **🎮 Member**.
 
-    ## 📌 Next Steps
+    # 📌 Next Steps
 
     🎭 **Choose your roles**
     ➡ Please go to {rr_mention} and select your roles.
@@ -129,7 +129,7 @@ async def on_raw_reaction_add(payload):
     to receive your guild invite.
 
     >>> ⚔️ Welcome to Kaikei.
-    >>> Fight together. Grow stronger.
+     Fight together. Grow stronger.
     """
 
         await status_channel.send(welcome_message)
