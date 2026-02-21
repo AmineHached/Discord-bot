@@ -94,10 +94,45 @@ async def on_raw_reaction_add(payload):
     except Exception as e:
         print("Failed to remove role:", e)
 
-    # Approve message
-    await channel.send(
-        f"🌿 Welcome to Kaikei, {applicant.mention}! Your application has been approved."
+    # Find recruit-status channel
+    status_channel = discord.utils.get(
+        guild.text_channels,
+        name="recruit-status"
     )
+
+    # Find reaction roles channel
+    reaction_roles_channel = discord.utils.get(
+        guild.text_channels,
+        name="reaction-roles"
+    )
+
+    if status_channel:
+
+        rr_mention = (
+            reaction_roles_channel.mention
+            if reaction_roles_channel else "#reaction-roles"
+        )
+
+        welcome_message = f"""
+    # 🌿 Welcome to **Kaikei**, {applicant.mention}!
+
+    Your application has been **approved** ✅  
+    You are now officially a **🎮 Member**.
+
+    ## 📌 Next Steps
+
+    🎭 **Choose your roles**
+    ➡ Please go to {rr_mention} and select your roles.
+
+    🎮 **Get invited in-game**
+    ➡ Ping **at least an Officer or higher**  
+    to receive your guild invite.
+
+    >>> ⚔️ Welcome to Kaikei.
+    >>> Fight together. Grow stronger.
+    """
+
+        await status_channel.send(welcome_message)
 
 # =====================
 # Run Bot
