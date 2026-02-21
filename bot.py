@@ -1,8 +1,18 @@
 import os
+try:
+    from dotenv import load_dotenv
+except Exception:
+    load_dotenv = None
+
 import discord
 from discord.ext import commands
 
-TOKEN = 'TOKEN'
+# Load .env when available (development only)
+if load_dotenv:
+    load_dotenv()
+
+# Read token from environment. Railway and other hosts set env vars for you.
+TOKEN = os.getenv("BOT_TOKEN") or os.getenv("DISCORD_TOKEN")
 GUILD_NAME = "Kaikei"
 
 
@@ -95,5 +105,5 @@ async def on_raw_reaction_add(payload):
 
 if __name__ == "__main__":
     if not TOKEN:
-        raise RuntimeError("Set your DISCORD_TOKEN in the code.")
+        raise RuntimeError("Set your BOT_TOKEN environment variable before running the bot.")
     bot.run(TOKEN)
