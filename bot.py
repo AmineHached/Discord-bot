@@ -1,6 +1,11 @@
 import os
 import datetime
-import pytz
+try:
+    import pytz
+    _have_pytz = True
+except Exception:
+    pytz = None
+    _have_pytz = False
 
 try:
     from dotenv import load_dotenv
@@ -66,7 +71,17 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-tz = pytz.timezone(TIMEZONE)
+tZ_error = None
+if _have_pytz and pytz is not None:
+    tz = pytz.timezone(TIMEZONE)
+else:
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo(TIMEZONE)
+    except Exception as e:
+        tZ_error = e
+        tz = datetime.timezone.utc
+
 scheduler = AsyncIOScheduler(timezone=tz)
 
 # =====================
