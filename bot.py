@@ -1,11 +1,6 @@
 import os
 import datetime
-try:
-    import pytz
-    _have_pytz = True
-except Exception:
-    pytz = None
-    _have_pytz = False
+import pytz
 
 try:
     from dotenv import load_dotenv
@@ -57,7 +52,7 @@ EVENT_MINUTE = 30
 EVENT_DURATION_MINUTES = 120
 
 # Reminders posted to this text channel
-REMINDER_CHANNEL_NAME = "recruit-status"
+REMINDER_CHANNEL_NAME = "events-signups"
 PING_ROLE_NAME = "🎮 Member"  # ping this role in reminders (create a dedicated role if you want)
 
 # =====================
@@ -71,17 +66,7 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-tZ_error = None
-if _have_pytz and pytz is not None:
-    tz = pytz.timezone(TIMEZONE)
-else:
-    try:
-        from zoneinfo import ZoneInfo
-        tz = ZoneInfo(TIMEZONE)
-    except Exception as e:
-        tZ_error = e
-        tz = datetime.timezone.utc
-
+tz = pytz.timezone(TIMEZONE)
 scheduler = AsyncIOScheduler(timezone=tz)
 
 # =====================
@@ -123,9 +108,10 @@ async def send_reminder(text: str):
     if channel is None:
         return
 
-    role = discord.utils.get(guild.roles, name=PING_ROLE_NAME)
-    mention = role.mention if role else "@here"
-    await channel.send(f"{mention} {text}")
+    await channel.send(
+        f"@everyone {text}",
+        allowed_mentions=discord.AllowedMentions(everyone=True)
+    )
 
 async def fetch_event_image_bytes():
     try:
