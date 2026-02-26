@@ -47,7 +47,7 @@ EVENT_IMAGE_PATH = "20262228254.png"
 
 # Schedule: Weekdays at 8:30 PM (local time)
 TIMEZONE = "Africa/Tunis"
-EVENT_HOUR = 20
+EVENT_HOUR = 19  
 EVENT_MINUTE = 30
 EVENT_DURATION_MINUTES = 120
 
