@@ -191,12 +191,12 @@ async def on_ready():
         replace_existing=True,
     )
 
-    # Reminder 5 minutes before (Mon–Fri)
+    # Reminder 15 minutes before (Mon–Fri)
     scheduler.add_job(
         lambda: bot.loop.create_task(
-            send_reminder(f"⏰ **{EVENT_NAME}** starts in **5 minutes**! Join voice 🎤")
+            send_reminder(f"⏰ **{EVENT_NAME}** starts in **5 minutes**! See yaa in the Guild Hall 🌿")
         ),
-        CronTrigger(day_of_week="mon-fri", hour=EVENT_HOUR, minute=EVENT_MINUTE - 5),
+        CronTrigger(day_of_week="mon-fri", hour=EVENT_HOUR, minute=EVENT_MINUTE - 15),
         id="guild_party_reminder",
         replace_existing=True,
     )
@@ -204,7 +204,7 @@ async def on_ready():
     # Start message at event time (Mon–Fri)
     scheduler.add_job(
         lambda: bot.loop.create_task(
-            send_reminder(f"✅ **{EVENT_NAME}** is starting now! Jump in voice 🎮")
+            send_reminder(f"✅ **{EVENT_NAME}** is starting now! Jump in the Guild Hall 🎮")
         ),
         CronTrigger(day_of_week="mon-fri", hour=EVENT_HOUR, minute=EVENT_MINUTE),
         id="guild_party_start",
