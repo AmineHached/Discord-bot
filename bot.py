@@ -194,7 +194,7 @@ async def on_ready():
     # Reminder 15 minutes before (Mon–Fri)
     scheduler.add_job(
         lambda: bot.loop.create_task(
-            send_reminder(f"⏰ **{EVENT_NAME}** starts in **5 minutes**! See yaa in the Guild Hall 🌿")
+            send_reminder(f"⏰ **{EVENT_NAME}** starts in **15 minutes**! See yaa in the Guild Hall 🌿")
         ),
         CronTrigger(day_of_week="mon-fri", hour=EVENT_HOUR, minute=EVENT_MINUTE - 15),
         id="guild_party_reminder",
