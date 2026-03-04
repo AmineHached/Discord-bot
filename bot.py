@@ -30,6 +30,13 @@ MEMBER_ROLE_NAME = "🎮 Member"
 APPROVAL_CHANNEL_NAME = "apply-here"
 
 # =====================
+# Approval Permissions
+# =====================
+
+# Only users with these roles can approve applications
+APPROVAL_ROLES = ["👑 Guild Master", "👑 Vice Master", "⚔️ Warlord", "🛡️ Officer"]
+
+# =====================
 # Scheduled Event Config
 # =====================
 
@@ -226,6 +233,21 @@ async def on_raw_reaction_add(payload):
     guild = bot.get_guild(payload.guild_id)
     if guild is None:
         return
+
+    # Get the member who reacted
+    try:
+        reacting_member = await guild.fetch_member(payload.user_id)
+    except:
+        return
+
+    # Check if reacting member has approval permission
+    has_approval_role = any(
+        discord.utils.get(guild.roles, name=role_name) in reacting_member.roles
+        for role_name in APPROVAL_ROLES
+    )
+
+    if not has_approval_role:
+        return  # User doesn't have permission to approve
 
     # Make sure this is the correct channel
     channel = guild.get_channel(payload.channel_id)
