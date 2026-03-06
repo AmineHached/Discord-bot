@@ -36,9 +36,9 @@ APPROVAL_CHANNEL_NAME = "apply-here"
 # Only users with these roles can approve applications
 APPROVAL_ROLES = ["👑 Guild Master", "👑 Vice Master", "⚔️ Warlord", "🛡️ Officer"]
 
-# =====================
+# ====================
 # Scheduled Event Config
-# =====================
+# ====================
 
 EVENT_NAME = "Guild Party"
 EVENT_DESCRIPTION = (
