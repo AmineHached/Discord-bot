@@ -265,22 +265,47 @@ def parse_raid_embed(message: discord.Message):
     if ts_match:
         start_utc = datetime.datetime.fromtimestamp(int(ts_match.group(1)), tz=datetime.timezone.utc)
     else:
-        # Fallback: look for "Month DD, YYYY" and "HH:MM AM/PM" in field values
+        # Fallback: search all embed text parts for date/time patterns
         date_str = None
         time_str = None
+
+        # Collect all text sources (fields, description, footer)
+        search_texts = []
         for field in embed.fields:
-            val = field.value or ""
-            dm = re.search(r'([A-Z][a-z]+ \d{1,2},? \d{4})', val)
-            tm = re.search(r'(\d{1,2}:\d{2}\s?[APap][Mm])', val)
-            if dm:
-                date_str = dm.group(1).replace(',', '')
-            if tm:
-                time_str = tm.group(1).replace(' ', '')
+            if field.value:
+                search_texts.append(field.value)
+        if embed.description:
+            search_texts.append(embed.description)
+        if embed.footer and embed.footer.text:
+            search_texts.append(embed.footer.text)
+        # Also try all_text as a last resort
+        search_texts.append(all_text)
+
+        for val in search_texts:
+            if not date_str:
+                # "Saturday, March 7, 2026" or "March 7, 2026" or "March 7 2026"
+                dm = re.search(r'(?:[A-Z][a-z]+,\s+)?([A-Z][a-z]+ \d{1,2},? \d{4})', val)
+                if dm:
+                    date_str = dm.group(1).replace(',', '').strip()
+            if not time_str:
+                # "8:30 PM", "08:30PM"
+                tm = re.search(r'(\d{1,2}:\d{2}\s?[APap][Mm])', val)
+                if tm:
+                    time_str = tm.group(1).replace(' ', '')
+                else:
+                    # 24-hour "20:30" — only if we haven't found a 12-hour time yet
+                    tm24 = re.search(r'\b(\d{1,2}:\d{2})\b', val)
+                    if tm24:
+                        time_str = tm24.group(1)
+
         if not date_str or not time_str:
             print(f"[WARN] Could not parse date/time from Raid-Helper embed '{name}'")
             return None
         try:
-            dt_local = tz.localize(datetime.datetime.strptime(f"{date_str} {time_str}", "%B %d %Y %I:%M%p"))
+            if re.search(r'[APap][Mm]$', time_str):
+                dt_local = tz.localize(datetime.datetime.strptime(f"{date_str} {time_str}", "%B %d %Y %I:%M%p"))
+            else:
+                dt_local = tz.localize(datetime.datetime.strptime(f"{date_str} {time_str}", "%B %d %Y %H:%M"))
             start_utc = dt_local.astimezone(datetime.timezone.utc)
         except Exception as e:
             print(f"[WARN] Date parse error for '{name}': {e}")
