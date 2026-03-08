@@ -287,8 +287,23 @@ def parse_raid_embed(message: discord.Message):
                 dm = re.search(r'(?:[A-Z][a-z]+,\s+)?([A-Z][a-z]+ \d{1,2},? \d{4})', val)
                 if dm:
                     date_str = dm.group(1).replace(',', '').strip()
+            if not date_str:
+                # MM/DD/YYYY or M/D/YYYY
+                dm2 = re.search(r'\b(\d{1,2}/\d{1,2}/\d{4})\b', val)
+                if dm2:
+                    date_str = dm2.group(1)  # handled separately below
+            if not date_str:
+                # ISO  YYYY-MM-DD
+                dm3 = re.search(r'\b(\d{4}-\d{2}-\d{2})\b', val)
+                if dm3:
+                    date_str = dm3.group(1)
+            if not date_str:
+                # "March 7" without year — use current year
+                dm4 = re.search(r'\b([A-Z][a-z]+ \d{1,2})\b', val)
+                if dm4:
+                    date_str = f"{dm4.group(1)} {datetime.datetime.now(tz).year}"
             if not time_str:
-                # "8:30 PM", "08:30PM"
+                # "8:30 PM", "08:30PM", "8:30pm"
                 tm = re.search(r'(\d{1,2}:\d{2}\s?[APap][Mm])', val)
                 if tm:
                     time_str = tm.group(1).replace(' ', '')
@@ -299,16 +314,47 @@ def parse_raid_embed(message: discord.Message):
                         time_str = tm24.group(1)
 
         if not date_str or not time_str:
-            print(f"[WARN] Could not parse date/time from Raid-Helper embed '{name}'")
+            # Log exactly what text was found in the embed to aid debugging
+            debug_parts = []
+            for field in embed.fields:
+                if field.value:
+                    debug_parts.append(f"  field[{field.name!r}]: {field.value!r}")
+            if embed.description:
+                debug_parts.append(f"  description: {embed.description!r}")
+            if embed.footer and embed.footer.text:
+                debug_parts.append(f"  footer: {embed.footer.text!r}")
+            print(f"[WARN] Could not parse date/time from Raid-Helper embed '{name}' "
+                  f"(date_str={date_str!r}, time_str={time_str!r})")
+            if debug_parts:
+                print("[WARN]  Embed text dump:")
+                for dp in debug_parts:
+                    print(f"[WARN] {dp}")
             return None
         try:
-            if re.search(r'[APap][Mm]$', time_str):
-                dt_local = tz.localize(datetime.datetime.strptime(f"{date_str} {time_str}", "%B %d %Y %I:%M%p"))
+            is_ampm = bool(re.search(r'[APap][Mm]$', time_str))
+            time_fmt = "%I:%M%p" if is_ampm else "%H:%M"
+
+            # Determine date format
+            dt_local = None
+            if re.match(r'\d{1,2}/\d{1,2}/\d{4}', date_str):
+                # Try MM/DD/YYYY then DD/MM/YYYY
+                for dfmt in ("%m/%d/%Y", "%d/%m/%Y"):
+                    try:
+                        dt_local = tz.localize(datetime.datetime.strptime(f"{date_str} {time_str}", f"{dfmt} {time_fmt}"))
+                        break
+                    except ValueError:
+                        pass
+            elif re.match(r'\d{4}-\d{2}-\d{2}', date_str):
+                dt_local = tz.localize(datetime.datetime.strptime(f"{date_str} {time_str}", f"%Y-%m-%d {time_fmt}"))
             else:
-                dt_local = tz.localize(datetime.datetime.strptime(f"{date_str} {time_str}", "%B %d %Y %H:%M"))
+                # "March 7 2026" style
+                dt_local = tz.localize(datetime.datetime.strptime(f"{date_str} {time_str}", f"%B %d %Y {time_fmt}"))
+
+            if dt_local is None:
+                raise ValueError(f"Unrecognised date_str format: {date_str!r}")
             start_utc = dt_local.astimezone(datetime.timezone.utc)
         except Exception as e:
-            print(f"[WARN] Date parse error for '{name}': {e}")
+            print(f"[WARN] Date parse error for '{name}': {e} (date_str={date_str!r}, time_str={time_str!r})")
             return None
 
     end_utc = start_utc + datetime.timedelta(minutes=RAID_EVENT_DURATION_MINUTES)
