@@ -261,6 +261,10 @@ def parse_raid_embed(message: discord.Message):
     name = fix_spaced_title(raw_name)[:100]
 
     # Start time — prefer Discord timestamp <t:UNIX:?> (most reliable)
+    print(f"[DEBUG] Raid-Helper embed '{name}' all_text: {all_text!r}")
+    print(f"[DEBUG] Embed fields: {[(f.name, f.value) for f in embed.fields]!r}")
+    print(f"[DEBUG] Embed description: {embed.description!r}")
+    print(f"[DEBUG] Embed footer: {embed.footer.text if embed.footer else None!r}")
     ts_match = re.search(r'<t:(\d+)', all_text)
     if ts_match:
         start_utc = datetime.datetime.fromtimestamp(int(ts_match.group(1)), tz=datetime.timezone.utc)
