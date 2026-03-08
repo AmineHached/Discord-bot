@@ -260,11 +260,15 @@ def parse_raid_embed(message: discord.Message):
         return None
     name = fix_spaced_title(raw_name)[:100]
 
+    # Raid-Helper posts a placeholder embed first ("Loading…") and edits it later.
+    # Detect by a field named "Loading..." or all_text that is only whitespace/invisible chars.
+    if any(f.name and 'loading' in f.name.lower() for f in embed.fields):
+        return None
+    stripped = all_text.replace('\u200e', '').replace('\u200f', '').strip()
+    if not stripped or stripped.lower() == name.lower():
+        return None
+
     # Start time — prefer Discord timestamp <t:UNIX:?> (most reliable)
-    print(f"[DEBUG] Raid-Helper embed '{name}' all_text: {all_text!r}")
-    print(f"[DEBUG] Embed fields: {[(f.name, f.value) for f in embed.fields]!r}")
-    print(f"[DEBUG] Embed description: {embed.description!r}")
-    print(f"[DEBUG] Embed footer: {embed.footer.text if embed.footer else None!r}")
     ts_match = re.search(r'<t:(\d+)', all_text)
     if ts_match:
         start_utc = datetime.datetime.fromtimestamp(int(ts_match.group(1)), tz=datetime.timezone.utc)
