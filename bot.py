@@ -40,26 +40,15 @@ APPROVAL_CHANNEL_NAME = "apply-here"
 APPROVAL_ROLES = ["👑 Guild Master", "👑 Vice Master", "⚔️ Warlord", "🛡️ Officer"]
 
 # ====================
-# Scheduled Event Config
+# Guild Party Reminder Config
 # ====================
 
 EVENT_NAME = "Guild Party"
-EVENT_DESCRIPTION = (
-    "Join the Guild Party for an exciting gathering dedicated to bringing all guild members together in a fun atmosphere."
-)
-
-# Voice channel the event is attached to (must match exactly)
-EVENT_VOICE_CHANNEL_NAME = "Guild Voice"
-
-# Optional cover image (put the file next to this script)
-# If file is missing, event will be created without an image.
-EVENT_IMAGE_PATH = "20262228254.png"
 
 # Schedule: Weekdays at 8:30 PM (local time)
 TIMEZONE = "Africa/Tunis"
 EVENT_HOUR = 19  
 EVENT_MINUTE = 00
-EVENT_DURATION_MINUTES = 120
 
 # Reminders posted to this text channel
 REMINDER_CHANNEL_NAME = "events-signups"
@@ -106,26 +95,6 @@ async def get_guild():
 async def get_text_channel(guild: discord.Guild, name: str):
     return discord.utils.get(guild.text_channels, name=name)
 
-async def get_voice_channel(guild: discord.Guild, name: str):
-    return discord.utils.get(guild.voice_channels, name=name)
-
-def next_weekday_event_start_local(now_local: datetime.datetime) -> datetime.datetime:
-    # If it's before today's event time and today is weekday -> today
-    event_today = now_local.replace(hour=EVENT_HOUR, minute=EVENT_MINUTE, second=0, microsecond=0)
-
-    if now_local.weekday() <= 4 and now_local < event_today:
-        return event_today
-
-    # Otherwise, find next weekday
-    d = now_local
-    for _ in range(7):
-        d = d + datetime.timedelta(days=1)
-        if d.weekday() <= 4:
-            return d.replace(hour=EVENT_HOUR, minute=EVENT_MINUTE, second=0, microsecond=0)
-
-    # Fallback (should never hit)
-    return (now_local + datetime.timedelta(days=1)).replace(hour=EVENT_HOUR, minute=EVENT_MINUTE, second=0, microsecond=0)
-
 async def send_reminder(text: str):
     guild = await get_guild()
     if guild is None:
@@ -135,65 +104,15 @@ async def send_reminder(text: str):
     if channel is None:
         return
 
+    ping_role = discord.utils.get(guild.roles, name=PING_ROLE_NAME)
+    if ping_role is None:
+        print(f"[WARN] Ping role '{PING_ROLE_NAME}' not found. Sending reminder without ping.")
+        await channel.send(text)
+        return
+
     await channel.send(
-        f"@🎮 Member {text}",
-        allowed_mentions=discord.AllowedMentions(everyone=True)
-    )
-
-async def fetch_event_image_bytes():
-    try:
-        with open(EVENT_IMAGE_PATH, "rb") as f:
-            return f.read()
-    except Exception:
-        return None
-
-async def event_already_exists(guild: discord.Guild, start_time_utc: datetime.datetime) -> bool:
-    try:
-        events = await guild.fetch_scheduled_events()
-    except Exception:
-        return False
-
-    # Consider it same event if name matches and start time within 2 minutes
-    for ev in events:
-        if ev.name != EVENT_NAME:
-            continue
-        if ev.start_time is None:
-            continue
-        delta = abs((ev.start_time - start_time_utc).total_seconds())
-        if delta <= 120:
-            return True
-    return False
-
-async def create_next_guild_party_event():
-    guild = await get_guild()
-    if guild is None:
-        return
-
-    voice_channel = await get_voice_channel(guild, EVENT_VOICE_CHANNEL_NAME)
-    if voice_channel is None:
-        return
-
-    now_local = datetime.datetime.now(tz)
-    start_local = next_weekday_event_start_local(now_local)
-    end_local = start_local + datetime.timedelta(minutes=EVENT_DURATION_MINUTES)
-
-    start_utc = start_local.astimezone(datetime.timezone.utc)
-    end_utc = end_local.astimezone(datetime.timezone.utc)
-
-    if await event_already_exists(guild, start_utc):
-        return
-
-    image_bytes = await fetch_event_image_bytes()
-
-    await guild.create_scheduled_event(
-        name=EVENT_NAME,
-        description=EVENT_DESCRIPTION,
-        start_time=start_utc,
-        end_time=end_utc,
-        channel=voice_channel,
-        entity_type=discord.EntityType.voice,
-        privacy_level=discord.PrivacyLevel.guild_only,
-        image=image_bytes,
+        f"{ping_role.mention} {text}",
+        allowed_mentions=discord.AllowedMentions(roles=[ping_role])
     )
 
 # =====================
@@ -456,17 +375,6 @@ async def on_ready():
 
     if scheduler.running:
         return
-
-    # Create the next scheduled event immediately on startup
-    bot.loop.create_task(create_next_guild_party_event())
-
-    # Every weekday shortly after midnight: ensure next event exists
-    scheduler.add_job(
-        lambda: bot.loop.create_task(create_next_guild_party_event()),
-        CronTrigger(day_of_week="mon-fri", hour=0, minute=10),
-        id="create_next_event",
-        replace_existing=True,
-    )
 
     # Reminder 15 minutes before (Mon–Fri)
     _reminder_total_minutes = EVENT_HOUR * 60 + EVENT_MINUTE - 15
