@@ -136,7 +136,7 @@ async def send_reminder(text: str):
         return
 
     await channel.send(
-        f"@everyone {text}",
+        f"@🎮 Member {text}",
         allowed_mentions=discord.AllowedMentions(everyone=True)
     )
 
