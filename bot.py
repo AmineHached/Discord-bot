@@ -47,8 +47,10 @@ EVENT_NAME = "Guild Party"
 
 # Schedule: Weekdays at 8:30 PM (local time)
 TIMEZONE = "Africa/Tunis"
-EVENT_HOUR = 19  
-EVENT_MINUTE = 00
+EVENT_HOUR = int(os.getenv("EVENT_HOUR", "19"))
+EVENT_MINUTE = int(os.getenv("EVENT_MINUTE", "0"))
+EVENT_DAYS = os.getenv("EVENT_DAYS", "mon-sun")
+GUILD_ID = os.getenv("GUILD_ID")
 
 # Reminders posted to this text channel
 REMINDER_CHANNEL_NAME = "events-signups"
@@ -90,7 +92,20 @@ scheduler = AsyncIOScheduler(timezone=tz)
 # =====================
 
 async def get_guild():
-    return discord.utils.get(bot.guilds, name=GUILD_NAME)
+    if GUILD_ID:
+        try:
+            guild = bot.get_guild(int(GUILD_ID))
+            if guild is not None:
+                return guild
+            print(f"[WARN] GUILD_ID={GUILD_ID} not found in connected guilds.")
+        except ValueError:
+            print(f"[WARN] GUILD_ID is not a valid integer: {GUILD_ID!r}")
+
+    guild = discord.utils.get(bot.guilds, name=GUILD_NAME)
+    if guild is None:
+        visible = ", ".join(g.name for g in bot.guilds) or "<none>"
+        print(f"[WARN] Guild named '{GUILD_NAME}' was not found. Visible guilds: {visible}")
+    return guild
 
 async def get_text_channel(guild: discord.Guild, name: str):
     return discord.utils.get(guild.text_channels, name=name)
@@ -98,22 +113,34 @@ async def get_text_channel(guild: discord.Guild, name: str):
 async def send_reminder(text: str):
     guild = await get_guild()
     if guild is None:
+        print("[WARN] Reminder skipped: target guild not found.")
         return
 
     channel = await get_text_channel(guild, REMINDER_CHANNEL_NAME)
     if channel is None:
+        print(
+            f"[WARN] Reminder skipped: channel '{REMINDER_CHANNEL_NAME}' not found in guild '{guild.name}'."
+        )
         return
 
     ping_role = discord.utils.get(guild.roles, name=PING_ROLE_NAME)
     if ping_role is None:
         print(f"[WARN] Ping role '{PING_ROLE_NAME}' not found. Sending reminder without ping.")
-        await channel.send(text)
+        try:
+            await channel.send(text)
+            print(f"[INFO] Reminder sent to #{channel.name} without role ping.")
+        except Exception as e:
+            print(f"[ERROR] Failed to send reminder without ping: {e}")
         return
 
-    await channel.send(
-        f"{ping_role.mention} {text}",
-        allowed_mentions=discord.AllowedMentions(roles=[ping_role])
-    )
+    try:
+        await channel.send(
+            f"{ping_role.mention} {text}",
+            allowed_mentions=discord.AllowedMentions(roles=[ping_role])
+        )
+        print(f"[INFO] Reminder sent to #{channel.name} with role ping {ping_role.name!r}.")
+    except Exception as e:
+        print(f"[ERROR] Failed to send reminder with ping: {e}")
 
 # =====================
 # Raid-Helper Sync Helpers
@@ -371,6 +398,10 @@ async def sync_raid_event(message: discord.Message):
 @bot.event
 async def on_ready():
     print(f"Bot is online as {bot.user}")
+    print(
+        f"[INFO] Reminder schedule: days='{EVENT_DAYS}', time={EVENT_HOUR:02d}:{EVENT_MINUTE:02d}, tz='{TIMEZONE}'"
+    )
+    print(f"[INFO] Current local scheduler time: {datetime.datetime.now(tz).isoformat()}")
     load_raid_event_map()
 
     if scheduler.running:
@@ -384,7 +415,7 @@ async def on_ready():
         lambda: bot.loop.create_task(
             send_reminder(f"⏰ **{EVENT_NAME}** starts in **15 minutes**! See yaa in the Guild Hall 🌿")
         ),
-        CronTrigger(day_of_week="mon-fri", hour=_reminder_hour, minute=_reminder_minute),
+        CronTrigger(day_of_week=EVENT_DAYS, hour=_reminder_hour, minute=_reminder_minute),
         id="guild_party_reminder",
         replace_existing=True,
     )
@@ -394,12 +425,19 @@ async def on_ready():
         lambda: bot.loop.create_task(
             send_reminder(f"✅ **{EVENT_NAME}** is starting now! Jump in the Guild Hall 🎮")
         ),
-        CronTrigger(day_of_week="mon-fri", hour=EVENT_HOUR, minute=EVENT_MINUTE),
+        CronTrigger(day_of_week=EVENT_DAYS, hour=EVENT_HOUR, minute=EVENT_MINUTE),
         id="guild_party_start",
         replace_existing=True,
     )
 
     scheduler.start()
+
+    reminder_job = scheduler.get_job("guild_party_reminder")
+    start_job = scheduler.get_job("guild_party_start")
+    if reminder_job is not None:
+        print(f"[INFO] Next reminder run: {reminder_job.next_run_time}")
+    if start_job is not None:
+        print(f"[INFO] Next start run: {start_job.next_run_time}")
 
 # =====================
 # Raid-Helper Message Listeners
