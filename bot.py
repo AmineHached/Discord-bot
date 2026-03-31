@@ -4,6 +4,7 @@ import json
 import datetime
 import pytz
 import aiohttp
+import asyncio
 
 try:
     from dotenv import load_dotenv
@@ -147,6 +148,7 @@ async def send_reminder(text: str):
 # =====================
 
 raid_event_map: dict = {}
+raid_event_in_flight: set = set()
 
 def load_raid_event_map():
     global raid_event_map
@@ -348,48 +350,61 @@ async def sync_raid_event(message: discord.Message):
     image_bytes = await download_image(image_url)
     msg_id = str(message.id)
 
-    # Check if we already have a scheduled event for this message
-    existing = None
-    mapped_id = raid_event_map.get(msg_id)
-    if mapped_id:
-        try:
-            existing = await guild.fetch_scheduled_event(int(mapped_id))
-        except Exception:
-            existing = None
+    if msg_id in raid_event_in_flight:
+        return
 
-    if existing:
-        try:
-            kwargs = dict(
-                name=name,
-                description=description,
-                start_time=start_utc,
-                end_time=end_utc,
-            )
-            if image_bytes:
-                kwargs["image"] = image_bytes
-            await existing.edit(**kwargs)
-            print(f"[INFO] Updated scheduled event '{name}'")
-        except Exception as e:
-            print(f"[ERROR] Failed to update event '{name}': {e}")
-    else:
-        try:
-            kwargs = dict(
-                name=name,
-                description=description,
-                start_time=start_utc,
-                end_time=end_utc,
-                entity_type=discord.EntityType.external,
-                privacy_level=discord.PrivacyLevel.guild_only,
-                location="Kaikei",
-            )
-            if image_bytes:
-                kwargs["image"] = image_bytes
-            event = await guild.create_scheduled_event(**kwargs)
-            raid_event_map[msg_id] = str(event.id)
-            save_raid_event_map()
-            print(f"[INFO] Created scheduled event '{name}'")
-        except Exception as e:
-            print(f"[ERROR] Failed to create event '{name}': {e}")
+    raid_event_in_flight.add(msg_id)
+    try:
+
+        # Check if we already have a scheduled event for this message
+        existing = None
+        mapped_id = raid_event_map.get(msg_id)
+        if mapped_id:
+            try:
+                existing = await guild.fetch_scheduled_event(int(mapped_id))
+            except Exception:
+                existing = None
+
+            if existing:
+                try:
+                    kwargs = dict(
+                        name=name,
+                        description=description,
+                        start_time=start_utc,
+                        end_time=end_utc,
+                    )
+                    if image_bytes:
+                        kwargs["image"] = image_bytes
+                    await existing.edit(**kwargs)
+                    print(f"[INFO] Updated scheduled event '{name}'")
+                except discord.NotFound:
+                    raid_event_map.pop(msg_id, None)
+                    save_raid_event_map()
+                    existing = None
+                except Exception as e:
+                    print(f"[ERROR] Failed to update event '{name}': {e}")
+
+            if not existing:
+                try:
+                    kwargs = dict(
+                        name=name,
+                        description=description,
+                        start_time=start_utc,
+                        end_time=end_utc,
+                        entity_type=discord.EntityType.external,
+                        privacy_level=discord.PrivacyLevel.guild_only,
+                        location="Kaikei",
+                    )
+                    if image_bytes:
+                        kwargs["image"] = image_bytes
+                    event = await guild.create_scheduled_event(**kwargs)
+                    raid_event_map[msg_id] = str(event.id)
+                    save_raid_event_map()
+                    print(f"[INFO] Created scheduled event '{name}'")
+                except Exception as e:
+                    print(f"[ERROR] Failed to create event '{name}': {e}")
+    finally:
+        raid_event_in_flight.discard(msg_id)
 
 # =====================
 # Event: Bot Ready
