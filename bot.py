@@ -221,133 +221,131 @@ def parse_raid_embed(message: discord.Message):
     if not message.embeds:
         return None
 
-    embed = message.embeds[0]
-    all_text = embed_all_text(embed)
+    for embed in message.embeds:
+        all_text = embed_all_text(embed)
 
-    # Event name (title or author, fix spacing like 'B R E A K I N G   A R M Y')
-    raw_name = embed.title or (embed.author.name if embed.author else None)
-    if not raw_name:
-        return None
-    name = fix_spaced_title(raw_name)[:100]
+        # Event name (title or author, fix spacing like 'B R E A K I N G   A R M Y')
+        raw_name = embed.title or (embed.author.name if embed.author else None)
+        if not raw_name:
+            continue
+        name = fix_spaced_title(raw_name)[:100]
 
-    # Raid-Helper posts a placeholder embed first ("Loading…") and edits it later.
-    # Detect by a field named "Loading..." or all_text that is only whitespace/invisible chars.
-    if any(f.name and 'loading' in f.name.lower() for f in embed.fields):
-        return None
-    stripped = all_text.replace('\u200e', '').replace('\u200f', '').strip()
-    if not stripped or stripped.lower() == name.lower():
-        return None
+        # Raid-Helper posts a placeholder embed first ("Loading...") and edits it later.
+        if any(f.name and "loading" in f.name.lower() for f in embed.fields):
+            continue
+        stripped = all_text.replace("\u200e", "").replace("\u200f", "").strip()
+        if not stripped or stripped.lower() == name.lower():
+            continue
 
-    # Start time — prefer Discord timestamp <t:UNIX:?> (most reliable)
-    ts_match = re.search(r'<t:(\d+)', all_text)
-    if ts_match:
-        start_utc = datetime.datetime.fromtimestamp(int(ts_match.group(1)), tz=datetime.timezone.utc)
-    else:
-        # Fallback: search all embed text parts for date/time patterns
-        date_str = None
-        time_str = None
+        # Start time — prefer Discord timestamp <t:UNIX:?> (most reliable)
+        ts_match = re.search(r"<t:(\d+)", all_text)
+        if ts_match:
+            start_utc = datetime.datetime.fromtimestamp(int(ts_match.group(1)), tz=datetime.timezone.utc)
+        else:
+            # Fallback: search all embed text parts for date/time patterns
+            date_str = None
+            time_str = None
 
-        # Collect all text sources (fields, description, footer)
-        search_texts = []
-        for field in embed.fields:
-            if field.value:
-                search_texts.append(field.value)
-        if embed.description:
-            search_texts.append(embed.description)
-        if embed.footer and embed.footer.text:
-            search_texts.append(embed.footer.text)
-        # Also try all_text as a last resort
-        search_texts.append(all_text)
-
-        for val in search_texts:
-            if not date_str:
-                # "Saturday, March 7, 2026" or "March 7, 2026" or "March 7 2026"
-                dm = re.search(r'(?:[A-Z][a-z]+,\s+)?([A-Z][a-z]+ \d{1,2},? \d{4})', val)
-                if dm:
-                    date_str = dm.group(1).replace(',', '').strip()
-            if not date_str:
-                # MM/DD/YYYY or M/D/YYYY
-                dm2 = re.search(r'\b(\d{1,2}/\d{1,2}/\d{4})\b', val)
-                if dm2:
-                    date_str = dm2.group(1)  # handled separately below
-            if not date_str:
-                # ISO  YYYY-MM-DD
-                dm3 = re.search(r'\b(\d{4}-\d{2}-\d{2})\b', val)
-                if dm3:
-                    date_str = dm3.group(1)
-            if not date_str:
-                # "March 7" without year — use current year
-                dm4 = re.search(r'\b([A-Z][a-z]+ \d{1,2})\b', val)
-                if dm4:
-                    date_str = f"{dm4.group(1)} {datetime.datetime.now(tz).year}"
-            if not time_str:
-                # "8:30 PM", "08:30PM", "8:30pm"
-                tm = re.search(r'(\d{1,2}:\d{2}\s?[APap][Mm])', val)
-                if tm:
-                    time_str = tm.group(1).replace(' ', '')
-                else:
-                    # 24-hour "20:30" — only if we haven't found a 12-hour time yet
-                    tm24 = re.search(r'\b(\d{1,2}:\d{2})\b', val)
-                    if tm24:
-                        time_str = tm24.group(1)
-
-        if not date_str or not time_str:
-            # Log exactly what text was found in the embed to aid debugging
-            debug_parts = []
+            search_texts = []
             for field in embed.fields:
                 if field.value:
-                    debug_parts.append(f"  field[{field.name!r}]: {field.value!r}")
+                    search_texts.append(field.value)
             if embed.description:
-                debug_parts.append(f"  description: {embed.description!r}")
+                search_texts.append(embed.description)
             if embed.footer and embed.footer.text:
-                debug_parts.append(f"  footer: {embed.footer.text!r}")
-            print(f"[WARN] Could not parse date/time from Raid-Helper embed '{name}' "
-                  f"(date_str={date_str!r}, time_str={time_str!r})")
-            if debug_parts:
-                print("[WARN]  Embed text dump:")
-                for dp in debug_parts:
-                    print(f"[WARN] {dp}")
-            return None
-        try:
-            is_ampm = bool(re.search(r'[APap][Mm]$', time_str))
-            time_fmt = "%I:%M%p" if is_ampm else "%H:%M"
+                search_texts.append(embed.footer.text)
+            search_texts.append(all_text)
 
-            # Determine date format
-            dt_local = None
-            if re.match(r'\d{1,2}/\d{1,2}/\d{4}', date_str):
-                # Try MM/DD/YYYY then DD/MM/YYYY
-                for dfmt in ("%m/%d/%Y", "%d/%m/%Y"):
-                    try:
-                        dt_local = tz.localize(datetime.datetime.strptime(f"{date_str} {time_str}", f"{dfmt} {time_fmt}"))
-                        break
-                    except ValueError:
-                        pass
-            elif re.match(r'\d{4}-\d{2}-\d{2}', date_str):
-                dt_local = tz.localize(datetime.datetime.strptime(f"{date_str} {time_str}", f"%Y-%m-%d {time_fmt}"))
-            else:
-                # "March 7 2026" style
-                dt_local = tz.localize(datetime.datetime.strptime(f"{date_str} {time_str}", f"%B %d %Y {time_fmt}"))
+            for val in search_texts:
+                if not date_str:
+                    dm = re.search(r"(?:[A-Z][a-z]+,\s+)?([A-Z][a-z]+ \d{1,2},? \d{4})", val)
+                    if dm:
+                        date_str = dm.group(1).replace(",", "").strip()
+                if not date_str:
+                    dm2 = re.search(r"\b(\d{1,2}/\d{1,2}/\d{4})\b", val)
+                    if dm2:
+                        date_str = dm2.group(1)
+                if not date_str:
+                    dm3 = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", val)
+                    if dm3:
+                        date_str = dm3.group(1)
+                if not date_str:
+                    dm4 = re.search(r"\b([A-Z][a-z]+ \d{1,2})\b", val)
+                    if dm4:
+                        date_str = f"{dm4.group(1)} {datetime.datetime.now(tz).year}"
+                if not time_str:
+                    tm = re.search(r"(\d{1,2}:\d{2}\s?[APap][Mm])", val)
+                    if tm:
+                        time_str = tm.group(1).replace(" ", "")
+                    else:
+                        tm24 = re.search(r"\b(\d{1,2}:\d{2})\b", val)
+                        if tm24:
+                            time_str = tm24.group(1)
 
-            if dt_local is None:
-                raise ValueError(f"Unrecognised date_str format: {date_str!r}")
-            start_utc = dt_local.astimezone(datetime.timezone.utc)
-        except Exception as e:
-            print(f"[WARN] Date parse error for '{name}': {e} (date_str={date_str!r}, time_str={time_str!r})")
-            return None
+            if not date_str or not time_str:
+                debug_parts = []
+                for field in embed.fields:
+                    if field.value:
+                        debug_parts.append(f"  field[{field.name!r}]: {field.value!r}")
+                if embed.description:
+                    debug_parts.append(f"  description: {embed.description!r}")
+                if embed.footer and embed.footer.text:
+                    debug_parts.append(f"  footer: {embed.footer.text!r}")
+                print(
+                    f"[WARN] Could not parse date/time from Raid-Helper embed '{name}' "
+                    f"(date_str={date_str!r}, time_str={time_str!r})"
+                )
+                if debug_parts:
+                    print("[WARN]  Embed text dump:")
+                    for dp in debug_parts:
+                        print(f"[WARN] {dp}")
+                continue
+            try:
+                is_ampm = bool(re.search(r"[APap][Mm]$", time_str))
+                time_fmt = "%I:%M%p" if is_ampm else "%H:%M"
 
-    end_utc = start_utc + datetime.timedelta(minutes=RAID_EVENT_DURATION_MINUTES)
+                dt_local = None
+                if re.match(r"\d{1,2}/\d{1,2}/\d{4}", date_str):
+                    for dfmt in ("%m/%d/%Y", "%d/%m/%Y"):
+                        try:
+                            dt_local = tz.localize(
+                                datetime.datetime.strptime(f"{date_str} {time_str}", f"{dfmt} {time_fmt}")
+                            )
+                            break
+                        except ValueError:
+                            pass
+                elif re.match(r"\d{4}-\d{2}-\d{2}", date_str):
+                    dt_local = tz.localize(
+                        datetime.datetime.strptime(f"{date_str} {time_str}", f"%Y-%m-%d {time_fmt}")
+                    )
+                else:
+                    dt_local = tz.localize(
+                        datetime.datetime.strptime(f"{date_str} {time_str}", f"%B %d %Y {time_fmt}")
+                    )
 
-    # Description
-    description = (embed.description or "").strip()[:1000] or f"Raid event: {name}"
+                if dt_local is None:
+                    raise ValueError(f"Unrecognised date_str format: {date_str!r}")
+                start_utc = dt_local.astimezone(datetime.timezone.utc)
+            except Exception as e:
+                print(
+                    f"[WARN] Date parse error for '{name}': {e} "
+                    f"(date_str={date_str!r}, time_str={time_str!r})"
+                )
+                continue
 
-    # Image
-    image_url = None
-    if embed.image and embed.image.url:
-        image_url = embed.image.url
-    elif embed.thumbnail and embed.thumbnail.url:
-        image_url = embed.thumbnail.url
+        end_utc = start_utc + datetime.timedelta(minutes=RAID_EVENT_DURATION_MINUTES)
 
-    return name, start_utc, end_utc, description, image_url
+        description = (embed.description or "").strip()[:1000] or f"Raid event: {name}"
+
+        image_url = None
+        if embed.image and embed.image.url:
+            image_url = embed.image.url
+        elif embed.thumbnail and embed.thumbnail.url:
+            image_url = embed.thumbnail.url
+
+        return name, start_utc, end_utc, description, image_url
+
+    return None
 
 async def download_image(url) -> bytes:
     if not url:
@@ -366,6 +364,7 @@ async def sync_raid_event(message: discord.Message):
     guild = message.guild
     parsed = parse_raid_embed(message)
     if not parsed:
+        print(f"[WARN] Raid-Helper message parsed as None (msg_id={message.id})")
         return
 
     name, start_utc, end_utc, description, image_url = parsed
@@ -484,6 +483,7 @@ async def on_ready():
 async def on_message(message: discord.Message):
     if is_raid_helper_message(message):
         try:
+            print(f"[INFO] Raid-Helper message detected (msg_id={message.id})")
             await sync_raid_event(message)
         except Exception as e:
             print(f"[ERROR] Raid-Helper on_message sync failed: {e}")
@@ -493,6 +493,7 @@ async def on_message(message: discord.Message):
 async def on_message_edit(before: discord.Message, after: discord.Message):
     if is_raid_helper_message(after):
         try:
+            print(f"[INFO] Raid-Helper message edited (msg_id={after.id})")
             await sync_raid_event(after)
         except Exception as e:
             print(f"[ERROR] Raid-Helper on_message_edit sync failed: {e}")
