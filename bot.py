@@ -481,6 +481,14 @@ async def on_ready():
 
 @bot.event
 async def on_message(message: discord.Message):
+    if message.guild and message.channel and message.channel.name == RAID_HELPER_CHANNEL_NAME:
+        author_name = getattr(message.author, "name", None)
+        author_display = getattr(message.author, "display_name", None)
+        print(
+            "[INFO] Message in raid-helper channel "
+            f"(msg_id={message.id}, author={author_name!r}, display={author_display!r}, "
+            f"bot={message.author.bot}, webhook_id={message.webhook_id})"
+        )
     if is_raid_helper_message(message):
         try:
             print(f"[INFO] Raid-Helper message detected (msg_id={message.id})")
