@@ -61,11 +61,13 @@ PING_ROLE_NAME = "🎮 Member"  # ping this role in reminders (create a dedicate
 # Raid-Helper Sync Config
 # =====================
 
-# Bot name Raid-Helper uses (must match exactly)
+# Bot name Raid-Helper uses (must match exactly, unless ID is set)
 RAID_HELPER_BOT_NAME = "Raid-Helper"
+RAID_HELPER_BOT_ID = os.getenv("RAID_HELPER_BOT_ID")
 
 # Channel where Raid-Helper posts its event embeds
 RAID_HELPER_CHANNEL_NAME = "events-signups"
+RAID_HELPER_CHANNEL_ID = os.getenv("RAID_HELPER_CHANNEL_ID")
 
 # Default duration given to created scheduled events (minutes)
 RAID_EVENT_DURATION_MINUTES = 60
@@ -166,12 +168,32 @@ def save_raid_event_map():
         print(f"[WARN] Could not save raid_event_map: {e}")
 
 def is_raid_helper_message(message: discord.Message) -> bool:
-    return (
-        message.guild is not None
-        and message.author.bot
-        and message.author.name == RAID_HELPER_BOT_NAME
-        and message.channel.name == RAID_HELPER_CHANNEL_NAME
-    )
+    if message.guild is None:
+        return False
+
+    if RAID_HELPER_CHANNEL_ID:
+        try:
+            if str(message.channel.id) != str(RAID_HELPER_CHANNEL_ID):
+                return False
+        except Exception:
+            return False
+    else:
+        if message.channel.name != RAID_HELPER_CHANNEL_NAME:
+            return False
+
+    author = message.author
+
+    if RAID_HELPER_BOT_ID:
+        return str(author.id) == str(RAID_HELPER_BOT_ID)
+
+    # Allow either bot user or webhook with matching name/display name
+    if not (author.bot or message.webhook_id):
+        return False
+
+    target = RAID_HELPER_BOT_NAME.casefold()
+    name = (author.name or "").casefold()
+    display = (getattr(author, "display_name", "") or "").casefold()
+    return name == target or display == target
 
 def fix_spaced_title(text: str) -> str:
     """Convert 'B R E A K I N G   A R M Y' -> 'BREAKING ARMY'."""
