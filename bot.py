@@ -499,6 +499,15 @@ async def on_message(message: discord.Message):
 
 @bot.event
 async def on_message_edit(before: discord.Message, after: discord.Message):
+    if after.guild and after.channel and after.channel.name == RAID_HELPER_CHANNEL_NAME:
+        author_name = getattr(after.author, "name", None)
+        author_display = getattr(after.author, "display_name", None)
+        embed_count = len(after.embeds) if after.embeds else 0
+        print(
+            "[INFO] Edited message in raid-helper channel "
+            f"(msg_id={after.id}, author={author_name!r}, display={author_display!r}, "
+            f"bot={after.author.bot}, webhook_id={after.webhook_id}, embeds={embed_count})"
+        )
     if is_raid_helper_message(after):
         try:
             print(f"[INFO] Raid-Helper message edited (msg_id={after.id})")
