@@ -55,6 +55,7 @@ GUILD_ID = os.getenv("GUILD_ID")
 
 # Reminders posted to this text channel
 REMINDER_CHANNEL_NAME = "events-signups"
+REMINDER_CHANNEL_ID = os.getenv("REMINDER_CHANNEL_ID", "1492097338548813935")
 PING_ROLE_NAME = "🎮 Member"  # ping this role in reminders (create a dedicated role if you want)
 
 # =====================
@@ -110,7 +111,14 @@ async def get_guild():
         print(f"[WARN] Guild named '{GUILD_NAME}' was not found. Visible guilds: {visible}")
     return guild
 
-async def get_text_channel(guild: discord.Guild, name: str):
+async def get_text_channel(guild: discord.Guild, name: str, channel_id: str = None):
+    if channel_id:
+        try:
+            channel = guild.get_channel(int(channel_id))
+            if channel is not None:
+                return channel
+        except ValueError:
+            print(f"[WARN] Channel ID is not a valid integer: {channel_id!r}")
     return discord.utils.get(guild.text_channels, name=name)
 
 async def send_reminder(text: str):
@@ -119,7 +127,7 @@ async def send_reminder(text: str):
         print("[WARN] Reminder skipped: target guild not found.")
         return
 
-    channel = await get_text_channel(guild, REMINDER_CHANNEL_NAME)
+    channel = await get_text_channel(guild, REMINDER_CHANNEL_NAME, REMINDER_CHANNEL_ID)
     if channel is None:
         print(
             f"[WARN] Reminder skipped: channel '{REMINDER_CHANNEL_NAME}' not found in guild '{guild.name}'."
