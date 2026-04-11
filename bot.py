@@ -27,7 +27,7 @@ TOKEN = os.getenv("BOT_TOKEN") or os.getenv("DISCORD_TOKEN")
 # Server / Roles / Channels
 # =====================
 
-GUILD_NAME = "Kaikei"
+GUILD_NAME = "FINAO"
 
 RECRUIT_ROLE_NAME = "🌱 Recruit"
 MEMBER_ROLE_NAME = "🎮 Member"
@@ -422,7 +422,7 @@ async def sync_raid_event(message: discord.Message):
                         end_time=end_utc,
                         entity_type=discord.EntityType.external,
                         privacy_level=discord.PrivacyLevel.guild_only,
-                        location="Kaikei",
+                        location="FINAO",
                     )
                     if image_bytes:
                         kwargs["image"] = image_bytes
@@ -631,7 +631,7 @@ async def on_raw_reaction_add(payload):
         )
 
         welcome_message = f"""
-    # 🌿 Welcome to **Kaikei**, {applicant.mention}!
+    # 🌿 Welcome to **FINAO**, {applicant.mention}!
 
     Your application has been **approved** ✅  
     You are now officially a **🎮 Member**.
@@ -645,7 +645,7 @@ async def on_raw_reaction_add(payload):
     ➡ Ping **at least an Officer or higher**  
     to receive your guild invite.
 
-    >>> ⚔️ Welcome to Kaikei.
+    >>> ⚔️ Welcome to FINAO.
      Fight together. Grow stronger.
     """
 
