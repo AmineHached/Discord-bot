@@ -38,7 +38,7 @@ APPROVAL_CHANNEL_NAME = "apply-here"
 # =====================
 
 # Only users with these roles can approve applications
-APPROVAL_ROLES = ["👑 Guild Master", "👑 Vice Master", "⚔️ Warlord", "🛡️ Officer"]
+APPROVAL_ROLES = ["👑 Guild Master", "👑 Vice Master", "⚔️ Kageo影王"]
 
 # ====================
 # Guild Party Reminder Config
@@ -46,9 +46,9 @@ APPROVAL_ROLES = ["👑 Guild Master", "👑 Vice Master", "⚔️ Warlord", "�
 
 EVENT_NAME = "Guild Party"
 
-# Schedule: Weekdays at 8:30 PM (local time)
+# Schedule: Weekdays at 6:00 PM (local time)
 TIMEZONE = "Africa/Tunis"
-EVENT_HOUR = int(os.getenv("EVENT_HOUR", "19"))
+EVENT_HOUR = int(os.getenv("EVENT_HOUR", "17"))
 EVENT_MINUTE = int(os.getenv("EVENT_MINUTE", "0"))
 EVENT_DAYS = os.getenv("EVENT_DAYS", "mon-sun")
 GUILD_ID = os.getenv("GUILD_ID")
