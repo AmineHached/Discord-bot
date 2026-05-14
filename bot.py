@@ -1,5 +1,6 @@
 import os
 import re
+import unicodedata
 import json
 import datetime
 import pytz
@@ -39,6 +40,17 @@ APPROVAL_CHANNEL_NAME = "apply-here"
 
 # Only users with these roles can approve applications
 APPROVAL_ROLES = ["👑 Guild Master", "👑 Vice Master", "⚔️ Kageo影王"]
+APPROVAL_ROLE_IDS = [
+    role_id.strip()
+    for role_id in os.getenv("APPROVAL_ROLE_IDS", "").split(",")
+    if role_id.strip()
+]
+
+def normalize_role_name(name: str) -> str:
+    normalized = unicodedata.normalize("NFKC", name or "")
+    normalized = normalized.replace("\uFE0F", "").replace("\uFE0E", "")
+    normalized = " ".join(normalized.split())
+    return normalized.casefold()
 
 # ====================
 # Guild Party Reminder Config
@@ -565,9 +577,12 @@ async def on_raw_reaction_add(payload):
         return
 
     # Check if reacting member has approval permission
+    approval_role_ids = set(APPROVAL_ROLE_IDS)
+    approval_role_names = {normalize_role_name(name) for name in APPROVAL_ROLES}
     has_approval_role = any(
-        discord.utils.get(guild.roles, name=role_name) in reacting_member.roles
-        for role_name in APPROVAL_ROLES
+        (str(role.id) in approval_role_ids)
+        or (normalize_role_name(role.name) in approval_role_names)
+        for role in reacting_member.roles
     )
 
     if not has_approval_role:
