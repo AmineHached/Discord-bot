@@ -39,12 +39,16 @@ APPROVAL_CHANNEL_NAME = "apply-here"
 # =====================
 
 # Only users with these roles can approve applications
-APPROVAL_ROLES = ["👑 Guild Master", "👑 Vice Master", "⚔️ Kageo影王"]
+KAGEO_ROLE_ID = "1474338095855046708"
+APPROVAL_ROLES = ["👑 Guild Master", "👑 Vice Master"]
 APPROVAL_ROLE_IDS = [
     role_id.strip()
     for role_id in os.getenv("APPROVAL_ROLE_IDS", "").split(",")
     if role_id.strip()
 ]
+# Always allow the Kageo role via its ID.
+if KAGEO_ROLE_ID not in APPROVAL_ROLE_IDS:
+    APPROVAL_ROLE_IDS.append(KAGEO_ROLE_ID)
 
 def normalize_role_name(name: str) -> str:
     normalized = unicodedata.normalize("NFKC", name or "")
