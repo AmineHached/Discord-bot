@@ -64,7 +64,7 @@ EVENT_NAME = "Guild Party"
 
 # Schedule: Weekdays at 6:00 PM (local time)
 TIMEZONE = "Africa/Tunis"
-EVENT_HOUR = int(os.getenv("EVENT_HOUR", "17"))
+EVENT_HOUR = int(os.getenv("EVENT_HOUR", "18"))
 EVENT_MINUTE = int(os.getenv("EVENT_MINUTE", "0"))
 EVENT_DAYS = os.getenv("EVENT_DAYS", "mon-sun")
 GUILD_ID = os.getenv("GUILD_ID")
