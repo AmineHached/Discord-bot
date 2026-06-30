@@ -72,7 +72,7 @@ GUILD_ID = os.getenv("GUILD_ID")
 # Reminders posted to this text channel
 REMINDER_CHANNEL_NAME = "events-signups"
 REMINDER_CHANNEL_ID = os.getenv("REMINDER_CHANNEL_ID", "1492097338548813935")
-PING_ROLE_NAME = "🎮 Member"  # ping this role in reminders (create a dedicated role if you want)
+PING_ROLE_NAME = "🎮 Wanderer"  # ping this role in reminders (create a dedicated role if you want)
 
 # =====================
 # Raid-Helper Sync Config
