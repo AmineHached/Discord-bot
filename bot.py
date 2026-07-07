@@ -31,7 +31,7 @@ TOKEN = os.getenv("BOT_TOKEN") or os.getenv("DISCORD_TOKEN")
 GUILD_NAME = "FINAO"
 
 RECRUIT_ROLE_NAME = "🌱 Recruit"
-MEMBER_ROLE_NAME = "🎮 Member"
+MEMBER_ROLE_NAME = "🎮 Wanderer"
 APPROVAL_CHANNEL_NAME = "apply-here"
 
 # =====================
@@ -40,7 +40,7 @@ APPROVAL_CHANNEL_NAME = "apply-here"
 
 # Only users with these roles can approve applications
 KAGEO_ROLE_ID = "1474338095855046708"
-APPROVAL_ROLES = ["👑 Guild Master", "👑 Vice Master"]
+APPROVAL_ROLES = ["👑 Guild Master", "👑 Vice Master", "📜 Talent Hunter"]
 APPROVAL_ROLE_IDS = [
     role_id.strip()
     for role_id in os.getenv("APPROVAL_ROLE_IDS", "").split(",")
@@ -618,7 +618,7 @@ async def on_raw_reaction_add(payload):
     if member_role is None or recruit_role is None:
         return
 
-    # Add Member role
+    # Add promoted role
     try:
         await applicant.add_roles(member_role)
     except Exception as e:
@@ -653,7 +653,7 @@ async def on_raw_reaction_add(payload):
     # 🌿 Welcome to **FINAO**, {applicant.mention}!
 
     Your application has been **approved** ✅  
-    You are now officially a **🎮 Member**.
+    You are now officially a **🎮 Wanderer**.
 
     📌 Next Steps
 
